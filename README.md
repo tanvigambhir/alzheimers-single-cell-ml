@@ -1,35 +1,49 @@
-# Predicting Alzheimer's Disease States from Single-Cell RNA-seq Data
+# Alzheimer's Disease Cell-State Classification from Single-Nucleus RNA-seq
 
-## Project Overview
-This project develops a machine learning pipeline to classify individual brain cells as either Alzheimer's Disease (AD) or Healthy Control based on their transcriptomic profiles. By applying a Random Forest classifier to single-cell RNA-sequencing data, the model not only achieves high classification accuracy but also extracts the underlying gene signatures driving the disease state.
+A machine learning pipeline that classifies individual brain nuclei as Alzheimer's disease (AD) or healthy control from their gene expression, then examines which genes the model relied on most.
 
-## Biological Background
-Alzheimer's disease is characterized by complex, cell-type-specific transcriptional changes. Analyzing bulk tissue often masks these intricate differences. This pipeline leverages single-cell resolution to identify the specific molecular markers of neurodegeneration, moving beyond simple classification to actual biological target discovery.
+## Dataset
 
-## Dataset & Preprocessing
-* **Data Source:** Mathys et al., 2019 (GEO Accession: GSE138852).
-* **Composition:** 13,214 cells across various types (Oligodendrocytes, Astrocytes, Microglia, Neurons, etc.).
-* **Quality Control (Scanpy):** * Filtered out computational doublets and unidentified cell types.
-  * Removed rare genes (genes expressed in < 10 cells) to reduce technical noise.
-* **Normalization & Scaling:** Total count normalization (target sum 1e4), log1p transformation, and scaling applied to the top 2,000 highly variable genes.
+- **Source:** Grubman et al., 2019, *Nature Neuroscience*: "A single-cell atlas of entorhinal cortex from individuals with Alzheimer's disease reveals cell-type-specific gene expression regulation." GEO accession [GSE138852](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE138852).
+- **Tissue:** Human entorhinal cortex, one of the earliest regions affected by Alzheimer's pathology.
+- **Assay:** Single-nucleus RNA-seq (snRNA-seq), 10x Genomics.
+- **Size:** 13,214 nuclei from 12 individuals (AD and controls), including oligodendrocytes, astrocytes, microglia, neurons, and other cell types.
 
-## Machine Learning Modeling
-* **Algorithm:** Random Forest Classifier (100 estimators).
-* **Validation:** 80/20 Train-Test split.
-* **Performance:** Achieved **94.91% accuracy** on unseen test cells, demonstrating that AD cells possess a fundamentally distinct and predictable transcriptomic state compared to healthy controls.
+## Pipeline
 
-## Biological Interpretation & Feature Importance
-The true value of this model lies in identifying which genes the algorithm relied on to classify Alzheimer's cells. The top predictive features closely align with documented neurodegenerative pathology:
+All analysis is in `neuro_ml_alzheimers_analysis.ipynb`.
 
-1. **LINGO1:** A known negative regulator of myelination and neuronal survival. Its emergence as the top feature highlights severe myelin breakdown and points to a critical therapeutic target for neural repair.
-2. **NEAT1 & LINC00486:** Long non-coding RNAs strongly associated with cellular stress responses and paraspeckle formation, heavily upregulated in neurodegenerative states.
-3. **HSPA1A:** A major heat shock protein. Its high importance score indicates the cellular stress response attempting to clear misfolded protein aggregates (like amyloid-beta and tau).
-4. **XIST:** Suggests potential sex-specific transcriptional divergence in the disease pathology.
+1. **Quality control (Scanpy):** Removed computational doublets and unidentified cell types, and filtered out genes expressed in fewer than 10 nuclei.
+2. **Normalization:** Total-count normalization to 10,000 counts per nucleus, followed by log1p transformation.
+3. **Feature selection:** Retained the top 2,000 highly variable genes and scaled expression.
+4. **Classification (scikit-learn):** Random Forest classifier with 100 trees, trained on an 80/20 train/test split of nuclei.
+5. **Interpretation:** Ranked genes by Random Forest feature importance.
+
+## Results
+
+- **Accuracy:** 94.91% on held-out nuclei (see Limitations).
+- **Top predictive genes:**
+  1. **LINGO1:** a negative regulator of myelination and axon regeneration
+  2. **NEAT1** and **LINC00486:** long non-coding RNAs; NEAT1 is a stress-responsive RNA that scaffolds nuclear paraspeckles
+  3. **HSPA1A:** an HSP70-family chaperone involved in protein folding and the cellular stress response
+  4. **XIST:** an X-inactivation lncRNA expressed only in female cells (see Limitations)
+
+These genes are predictive features, not validated disease mechanisms.
+
+## Limitations
+
+- **Cell-level split:** The train/test split was performed on nuclei, not donors. With only 12 individuals, nuclei from the same donor appear in both training and test sets, so the model can learn donor-specific signals. The reported accuracy is therefore likely an overestimate.
+- **Sex as a confound:** XIST, a female-specific gene, ranked among the top features. This suggests the model partly learned donor sex rather than disease state, which can occur if sex is unevenly distributed between AD and control groups.
+- **Library confounding:** In this dataset, each 10x library pooled two individuals with the same diagnosis, so technical batch effects are aligned with disease status and may contribute to classification performance.
+- **Single metric:** Only accuracy is reported. Class balance, precision/recall, and per-cell-type performance were not evaluated.
+
+## Next Steps
+
+- Evaluate with a **donor-level split** (e.g., leave-one-donor-out cross-validation) so no individual appears in both training and test sets.
+- Exclude sex-linked genes (e.g., XIST, Y-chromosome genes) and compare performance.
+- Report balanced accuracy, precision/recall, and per-cell-type results.
+- Train separate classifiers per cell type to identify cell-type-specific disease signatures.
 
 ## Tech Stack
-* `Python`, `Scanpy`, `AnnData` (Biological preprocessing and UMAP dimensionality reduction)
-* `Scikit-Learn` (Machine learning, Random Forest modeling, Feature extraction)
-* `Pandas`, `Matplotlib`, `Seaborn` (Data manipulation and visualization)
 
----
-*Created by Tanvi Gambhir as a demonstration of applying computational pipelines to complex neurobiological data.*
+Python · Scanpy · AnnData · scikit-learn · Pandas · Matplotlib · Seaborn
